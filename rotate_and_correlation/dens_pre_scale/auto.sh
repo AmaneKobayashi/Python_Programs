@@ -1,0 +1,1 @@
+python.exe "C:\Python_Programs\rotate_and_correlation\rotate_and_correlation.py" "E:\XFEL CXDI MED4 data\201607-201802_512_Tij_for_EMAN\dens_pre_scale\obs_projection-150.mrc " "E:\XFEL CXDI MED4 data\201607-201802_512_Tij_for_EMAN\projection_from_3D\MED4_projection_5deg-150.mrc" 5 "150pix_000deg.csv
