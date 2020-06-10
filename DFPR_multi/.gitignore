@@ -16,7 +16,4 @@
 *.info
 *.log
 *.out
-*.npz
-*.bmp
-*snapshot_iter*
-*.xml
+*.json

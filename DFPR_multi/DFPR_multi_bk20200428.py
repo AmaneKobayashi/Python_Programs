@@ -12,7 +12,6 @@ import tifffile
 import gc
 import subprocess
 import chainer
-import sub_diff_rad
 
 from PIL import Image
 from skimage import io
@@ -278,29 +277,21 @@ else:
 #log file作成
 log_path=header + "_MPR.log"
 with open(log_path, mode='w') as log:
-	log.write("program Phase retrieval multi ver.20200428")
+	log.write("program Phase retrieval multi ver.20191121")
 
 # open mrc file
 
 with mrcfile.open(initial_dens, permissive=True) as mrc:
 	cp_dens=cp.asarray(mrc.data,dtype="float32")
 mrc.close
-if(memory_transfer_flag == 1):
-	cp_dens=cp.asnumpy(cp_dens)
 
 if(sup_flag==1):
 	if(support.find("tif") != 0):
 		sup=Image.open(support)
 		np_sup=np.asarray(sup,dtype="float32")
-		if(memory_transfer_flag == 1):
-			cp_dens=cp.asarray(cp_dens)
 		cp_sup=[np_sup]*int(cp_dens.shape[0])
-		if(memory_transfer_flag == 1):
-			cp_dens=cp.asnumpy(cp_dens)
 		cp_sup=cp.asarray(cp_sup,dtype="float32")
 		cp_sup=cp.flip(cp_sup,axis=1)
-		if(memory_transfer_flag == 1):
-			cp_sup=cp.asnumpy(cp_sup)
 		print("np_sup dtype = " + str(np_sup.dtype))
 		print("np_sup shape = " + str(np_sup.shape))
 		print("cp_sup shape = " + str(cp_sup.shape))
@@ -309,8 +300,6 @@ if(sup_flag==1):
 		with mrcfile.open(support, permissive=True) as mrc:
 			cp_sup=cp.asarray(mrc.data,dtype="float32")
 		mrc.close
-		if(memory_transfer_flag == 1):
-			cp_sup=cp.asnumpy(cp_sup)
 		print("cp_sup dtype = " + str(cp_sup.dtype))
 		print("cp_sup shape = " + str(cp_sup.shape))
 
@@ -400,11 +389,11 @@ if(target_size_flag==1):
 	print("donut_position = " + str(donut_position))
 	if(donut_position>250):
 		donut_position=150
-		print("donut_position is fiexed to " + str(donut_position))
+	print("donut_position = " + str(donut_position))
 
 	donut_bank_name="C:\Python_Programs\donut_FWHM050.mrc"
 	with mrcfile.open(donut_bank_name, permissive=True) as mrc:
-		donut_bank=np.asarray(mrc.data, dtype="float32")
+		donut_bank=np.asarray(mrc.data,dtype="float32")
 	mrc.close
 
 	np_donut_target=donut_bank[donut_position,:,:]
@@ -412,7 +401,7 @@ if(target_size_flag==1):
 	
 	#donut_target=Image.open('/home/amanekobayashi/work/donut_mask/donut_R200_FWHM050.tif')
 	#np_donut_target=np.asarray(donut_target,dtype="float32")
-	#cp_donut_target=cp.asarray(np_donut_target,dtype="float32")
+	cp_donut_target=cp.asarray(np_donut_target,dtype="float32")
 	
 	#欠損領域を円環平均の値で埋める　←　自己相関関数でギブズフリンジを低減するため。
 	#np_diff_rad=np.zeros(np_diff.shape,dtype="float32")
@@ -429,26 +418,22 @@ if(target_size_flag==1):
 	beam_stop_value=np.max(np_diff)
 	print("beam_stop_value = " + str(beam_stop_value))
 
-	diff_rad_flag=1
-	if(diff_rad_flag == 0):
-		np_diff_rad=np.zeros(np_diff.shape,dtype="float32")
-		for x in range(row):
-			for y in range(col):
-				if(np_diff[x,y]==0.0):
-					rad_distance=np.full(2*int(np.pi*(row+col)/2),100000.0)
-					if(rad_diff[int(temp_rad[x,y])] != 0.0):
-						for i in range(2*int(np.pi*(row+col)/2)):
-							if((rad_x[int(temp_rad[x,y]),i] != 0) & (rad_y[int(temp_rad[x,y]),i] != 0) & (np_diff[rad_x[int(temp_rad[x,y]),i],rad_y[int(temp_rad[x,y]),i]] != 0)):
-								rad_distance[i]=np.sqrt(np.square(x-rad_x[int(temp_rad[x,y]),i])+np.square(y-rad_y[int(temp_rad[x,y]),i]))
-						i_min=np.argmin(rad_distance)
-			#			print(i_min,rad_x[int(temp_rad[x,y]),i_min],rad_y[int(temp_rad[x,y]),i_min],np_diff[rad_x[int(temp_rad[x,y]),i_min],rad_y[int(temp_rad[x,y]),i_min]])
-						np_diff_rad[x,y]=np_diff[rad_x[int(temp_rad[x,y]),i_min],rad_y[int(temp_rad[x,y]),i_min]]
-					elif((rad_diff[int(temp_rad[x,y])] == 0.0) & (x > (row-small_angle_area)/2) & (x < (row+small_angle_area)/2) & (y > (col-small_angle_area)/2) & (y < (col+small_angle_area)/2)):
-						np_diff_rad[x,y]=beam_stop_value
-				else:
-					np_diff_rad[x,y]=np_diff[x,y]
-	if(diff_rad_flag == 1):
-		np_diff_rad=sub_diff_rad.diff_rad(np_diff,beam_stop_value)
+	np_diff_rad=np.zeros(np_diff.shape,dtype="float32")
+	for x in range(row):
+		for y in range(col):
+			if(np_diff[x,y]==0.0):
+				rad_distance=np.full(2*int(np.pi*(row+col)/2),100000.0)
+				if(rad_diff[int(temp_rad[x,y])] != 0.0):
+					for i in range(2*int(np.pi*(row+col)/2)):
+						if((rad_x[int(temp_rad[x,y]),i] != 0) & (rad_y[int(temp_rad[x,y]),i] != 0) & (np_diff[rad_x[int(temp_rad[x,y]),i],rad_y[int(temp_rad[x,y]),i]] != 0)):
+							rad_distance[i]=np.sqrt(np.square(x-rad_x[int(temp_rad[x,y]),i])+np.square(y-rad_y[int(temp_rad[x,y]),i]))
+					i_min=np.argmin(rad_distance)
+		#			print(i_min,rad_x[int(temp_rad[x,y]),i_min],rad_y[int(temp_rad[x,y]),i_min],np_diff[rad_x[int(temp_rad[x,y]),i_min],rad_y[int(temp_rad[x,y]),i_min]])
+					np_diff_rad[x,y]=np_diff[rad_x[int(temp_rad[x,y]),i_min],rad_y[int(temp_rad[x,y]),i_min]]
+				elif((rad_diff[int(temp_rad[x,y])] == 0.0) & (x > (row-small_angle_area)/2) & (x < (row+small_angle_area)/2) & (y > (col-small_angle_area)/2) & (y < (col+small_angle_area)/2)):
+					np_diff_rad[x,y]=beam_stop_value
+			else:
+				np_diff_rad[x,y]=np_diff[x,y]
 	
 	foname=header + "_diff_rad.tif"
 	tifffile.imsave(foname ,np_diff_rad)
@@ -489,8 +474,6 @@ cp_diff_amp=[np_diff]*int(sta_dens)
 cp_diff_amp=cp.asarray(cp_diff_amp,dtype="float32")
 cp_diff_amp=cp.flip(cp_diff_amp,axis=1)
 cp_diff_amp=cp.fft.ifftshift(cp_diff_amp, axes=(1,2))
-if(memory_transfer_flag == 1):
-	cp_diff_amp=cp.asnumpy(cp_diff_amp)
 
 if(target_size_flag == 1):
 	if(target_size.find(".tif") != -1):
@@ -516,12 +499,8 @@ if(target_size_flag == 1):
 	cp_autocorrelation = cp.fft.fftshift(cp_autocorrelation)
 	
 	cp_autocorrelation_abs=cp.absolute(cp_autocorrelation)
-	
+	del cp_autocorrelation
 	np_autocorrelation_abs=cp.asnumpy(cp_autocorrelation_abs)
-	if(memory_transfer_flag == 1):
-		cp_autocorrelation_abs=np_autocorrelation_abs
-		cp_diff=cp.asnumpy(cp_diff)
-		cp_autocorrelation=cp.asnumpy(cp_autocorrelation)
 
 	foname=header + "_autocorrelation.tif"
 	tifffile.imsave(foname ,np_autocorrelation_abs)
@@ -530,12 +509,8 @@ if(target_size_flag == 1):
 	TH_mode="keiken"
 
 	if(TH_mode=="keiken"):
-		if(memory_transfer_flag == 1):
-			cp_autocorrelation_abs=cp.asarray(cp_autocorrelation_abs)
 		ave_autocorrelation=cp.average(cp_autocorrelation_abs)
 		std_autocorrelation=cp.std(cp_autocorrelation_abs)
-		if(memory_transfer_flag == 1):
-			cp_autocorrelation_abs=cp.asnumpy(cp_autocorrelation_abs)
 	
 		th = ave_autocorrelation + std_autocorrelation
 		print("threshold = " + str(th))
@@ -546,18 +521,9 @@ if(target_size_flag == 1):
 		th=float(format(ret2))/10.0
 		print("threshold = " + str(th))
 
-	if(memory_transfer_flag == 1):
-		cp_autocorrelation_abs=cp.asarray(cp_autocorrelation_abs)
 	cp_th=cp.where(cp_autocorrelation_abs>=th,float(1),float(0))
-	if(memory_transfer_flag == 1):
-		cp_autocorrelation_abs=cp.asnumpy(cp_autocorrelation_abs)
 	cp_th=cp_th.astype(cp.float32)
-
-	if(memory_transfer_flag == 1):
-		cp_th=cp.asnumpy(cp_th)
-		np_th=cp_th
-	else:
-		np_th=cp.asnumpy(cp_th)
+	np_th=cp.asnumpy(cp_th)
 
 	foname=header + "_threshold.tif"
 	tifffile.imsave(foname ,np_th)
@@ -566,11 +532,7 @@ if(target_size_flag == 1):
 	FWHM="050"
 	print("FWHM : " + FWHM)
 
-	if(memory_transfer_flag == 1):
-		cp_autocorrelation_abs=cp.asarray(cp_autocorrelation_abs)
 	max_autocorrelation=cp.max(cp_autocorrelation_abs)
-	if(memory_transfer_flag == 1):
-		cp_autocorrelation_abs=cp.asnumpy(cp_autocorrelation_abs)
 	Wgauss= cp.log(max_autocorrelation/th) * cp.log(2) 
 	Wgauss=cp.sqrt(Wgauss)
 	Wgauss=Wgauss/cp.pi
@@ -608,17 +570,9 @@ if(target_size_flag == 1):
 	average_distance_retry_flag=0
 	if(average_distance>average_distance_limit):
 		th = ave_autocorrelation + 2*std_autocorrelation
-		if(memory_transfer_flag == 1):
-			cp_autocorrelation_abs=cp.asarray(cp_autocorrelation_abs)
-			cp_th=cp.asarray(cp_th)
-
 		cp_th=cp.where(cp_autocorrelation_abs>=th,float(1),float(0))
 		cp_th=cp_th.astype(cp.float32)
 		np_th=cp.asnumpy(cp_th)
-
-		if(memory_transfer_flag == 1):
-			cp_autocorrelation_abs=cp.asnumpy(cp_autocorrelation_abs)
-			cp_th=cp.asnumpy(cp_th)
 	
 		erode=cv2.erode(np_th,d_kernel2)
 		dilate=cv2.dilate(erode,d_kernel)
@@ -644,10 +598,7 @@ if(target_size_flag == 1):
 if(sup_flag!=1):
 	np_sup=erode
 	cp_sup=[np_sup]*int(cp_dens.shape[0])
-	if(memory_transfer_flag == 1):
-		cp_sup=cp.asnumpy(cp_sup)
-	else:
-		cp_sup=cp.asarray(cp_sup,dtype="float32")	
+	cp_sup=cp.asarray(cp_sup,dtype="float32")	
 
 if((target_size_flag != 1) & (initial_SW_delta_flag != 1) & (initial_SW_ips_flag == 1)):	
 	i_target_size = np.sum(erode[int((col-target_area)/2):int((col+target_area)/2),int((row-target_area)/2):int((row+target_area)/2)])
@@ -749,8 +700,6 @@ t1=time.time()
 #電子密度の複素数化
 
 cp_dens=cp.array(cp_dens, dtype=cp.complex64)
-if(memory_transfer_flag == 1):
-	cp_dens=cp.asnumpy(cp_dens)
 
 #SW用ガウシアンの定義
 if((iteration!="0") & (OSS_flag==0)):
@@ -800,21 +749,10 @@ for i in range(int(iteration)+int(additional_iteration)):
 
 #	subprocess.run(["nvidia-smi"])
 	
-	if(memory_transfer_flag == 1):
-		cp_dens=cp.asarray(cp_dens)
-		if(i != 0):
-			cp_structure_factor=cp.asarray(cp_structure_factor)
-
 	cp_structure_factor = cp.fft.fftn(cp_dens, axes=(1,2), norm="ortho")#【フーリエ変換】
 	cp_amp = cp.absolute(cp_structure_factor)#絶対値をとる
-
-	if(memory_transfer_flag == 1):
-		cp_dens=cp.asnumpy(cp_dens)
 	
 	#逆空間拘束
-
-	if(memory_transfer_flag == 1):
-		cp_diff_amp=cp.asarray(cp_diff_amp)
 
 	if(donut_mask_flag==1):
 		cp_structure_factor.real=cp.where((cp_diff_amp!=-1.0) & (cp_amp!=0.0),cp_structure_factor.real*cp_diff_amp/cp_amp,cp_structure_factor.real)
@@ -822,13 +760,7 @@ for i in range(int(iteration)+int(additional_iteration)):
 	else:
 		cp_structure_factor.real=cp.where((cp_diff_amp>0.0) & (cp_amp!=0.0),cp_structure_factor.real*cp_diff_amp/cp_amp,cp_structure_factor.real)
 		cp_structure_factor.imag=cp.where((cp_diff_amp>0.0) & (cp_amp!=0.0),cp_structure_factor.imag*cp_diff_amp/cp_amp,cp_structure_factor.imag)
-
-	if(memory_transfer_flag == 1):
-		cp_diff_amp=cp.asnumpy(cp_diff_amp)
-	
 #	subprocess.run(["nvidia-smi"])
-	if((memory_transfer_flag==1) & (i != 0)):
-			cp_dens_pre=cp.asarray(cp_dens_pre)
 	cp_dens_pre = cp.fft.ifftn(cp_structure_factor, axes=(1,2),norm="ortho")
 	if(memory_transfer_flag==1):
 		cp_structure_factor = cp.asnumpy(cp_structure_factor)#cupy配列 ⇒ numpy配列に変換
@@ -858,14 +790,10 @@ for i in range(int(iteration)+int(additional_iteration)):
 				if(DFPR_flag == 1):
 					if(memory_transfer_flag==1):
 						cp_dens_pre = cp.asarray(cp_dens_pre, dtype=cp.complex64)#numpy配列に変換 ⇒ cupy配列 
-
 					cp_dens_pre_abs=cp.absolute(cp_dens_pre)
-					cp_structure_factor_abs = cp.fft.fftn(cp_dens_pre_abs, axes=(1,2),norm="ortho")
-
 					if(memory_transfer_flag==1):
 						cp_dens_pre = cp.asnumpy(cp_dens_pre)#cupy配列 ⇒ numpy配列に変換
-						cp_dens_pre_abs=cp.asnumpy(cp_dens_pre_abs)				
-
+					cp_structure_factor_abs = cp.fft.fftn(cp_dens_pre_abs, axes=(1,2),norm="ortho")
 					cp_structure_factor_abs.real=G_kernel*cp_structure_factor_abs.real
 					cp_structure_factor_abs.imag=G_kernel*cp_structure_factor_abs.imag
 					G_dens = cp.fft.ifftn(cp_structure_factor_abs, axes=(1,2),norm="ortho")		
@@ -878,8 +806,6 @@ for i in range(int(iteration)+int(additional_iteration)):
 					G_dens = cp.fft.ifftn(cp_structure_factor, axes=(1,2),norm="ortho")
 					if(memory_transfer_flag==1):
 						cp_structure_factor = cp.asnumpy(cp_structure_factor)#cupy配列 ⇒ numpy配列に変換
-				if(memory_transfer_flag == 1):
-					G_kernel=cp.asnumpy(G_kernel)
 
 				if(initial_SW_delta_flag==1):
 					if(DFPR_flag == 1):
@@ -889,18 +815,11 @@ for i in range(int(iteration)+int(additional_iteration)):
 					threshold_3D=cp.repeat(threshold,int(col)*int(row))
 					threshold_3D=threshold_3D.reshape(sta_dens,int(row),int(col))
 #					print("normal SW")
-
-					if(memory_transfer_flag == 1):
-						cp_sup=cp.asarray(cp_sup, dtype="float32")
-
+	
 					if(DFPR_flag == 1):
 						cp_sup=cp.where(cp.absolute(G_dens)>=threshold_3D,float(1),float(0))
 					else:
 						cp_sup=cp.where(cp.real(G_dens)>=threshold_3D,float(1),float(0))
-
-					if(memory_transfer_flag == 1):
-						cp_sup=cp.asnumpy(cp_sup)
-
 				if((initial_SW_delta_flag!=1) & ((target_size_flag == 1) | (donut_mask_flag == 1))):
 #					print("delta free SW")
 					if(DFPR_flag == 1):
@@ -914,9 +833,6 @@ for i in range(int(iteration)+int(additional_iteration)):
 
 					if(SW_mode=="S4"):
 						e_target_size=float(target_size)/float(4)
-
-						if(memory_transfer_flag == 1):
-							cp_sup=cp.asarray(cp_sup)
 
 						for n in range(sta_dens):
 							div=max_array[n]/float(100)
@@ -934,25 +850,11 @@ for i in range(int(iteration)+int(additional_iteration)):
 								cp_sup_2D=cp.where(e_G_dens[n,:,:]>=threshold,float(1),float(0))
 								size_sup_2D=cp.sum(cp_sup_2D)							
 							cp_sup[n,:,:]=cp_sup_2D[:,:]
-						
-						if(memory_transfer_flag == 1):
-							cp_sup=cp.asnumpy(cp_sup)
-							cp_sup_2D=cp.asnumpy(cp_sup_2D)
-
 					elif(SW_mode=="AC"):							
-						if(memory_transfer_flag == 1):
-							cp_autocorrelation_abs=cp.asarray(cp_autocorrelation_abs)
-							cp_autocorrelation=cp.ascontiguousarray(cp_autocorrelation)
-
 						cp_autocorrelation = cp.fft.fft2(e_G_dens, axes=(1,2), norm="ortho")
-						cp_autocorrelation = cp.fft.fftshift(cp_autocorrelation)
-	
+						cp_autocorrelation = cp.fft.fftshift(cp_autocorrelation)	
 						cp_autocorrelation_abs=cp.absolute(cp_autocorrelation)
 						max_array_AC=cp.amax(cp_autocorrelation_abs, axis=(1,2))
-						
-						if(memory_transfer_flag == 1):
-							cp_sup=cp.asarray(cp_sup)
-							cp_autocorrelation=cp.asnumpy(cp_autocorrelation)
 
 						for n in range(sta_dens):
 							div=max_array_AC[n]/float(100000000)
@@ -966,21 +868,9 @@ for i in range(int(iteration)+int(additional_iteration)):
 							cp_sup_2D=cp.where(e_G_dens[n,:,:]>=max_array[n]*cp.sqrt(threshold/max_array_AC[n]),float(1),float(0))						
 							cp_sup[n,:,:]=cp_sup_2D[:,:]
 						print(threshold,size_sup_2D,cp.sum(cp_sup_2D))
-						if(memory_transfer_flag == 1):
-							cp_autocorrelation_abs=cp.asnumpy(cp_autocorrelation_abs)
-							cp_sup=cp.asnumpy(cp_sup)
-							cp_sup_2D=cp.asnumpy(cp_sup_2D)
 
-				if(memory_transfer_flag == 1):
-					cp_sup=cp.asarray(cp_sup)
-					
 				cp_sup=cp_sup.astype(cp.float32)				
 		
-				if(memory_transfer_flag == 1):
-					cp_sup=cp.asnumpy(cp_sup)
-					G_dens=cp.asnumpy(G_dens)
-					e_G_dens=cp.asnumpy(e_G_dens)
-
 				SW_ips=SW_ips*float(SW_ips_step)
 
 				if(SW_sup_output_flag==1):
@@ -1010,12 +900,10 @@ for i in range(int(iteration)+int(additional_iteration)):
 	if(i+1==int(iteration)+int(additional_iteration)):
 		if(memory_transfer_flag==1):
 			cp_dens_pre = cp.asarray(cp_dens_pre, dtype=cp.complex64)#numpy配列 ⇒ cupy配列に変換
-			cp_sup=cp.asarray(cp_sup)
 		rdens_in=cp_sup*cp.absolute(cp_dens_pre)
 		rdens_out=-(cp_sup-1.0)*cp.absolute(cp_dens_pre)
 		if(memory_transfer_flag==1):
 			cp_dens_pre = cp.asnumpy(cp_dens_pre)#cupy配列 ⇒ numpy配列に変換
-			cp_sup=cp.asnumpy(cp_sup)
 
 		rdens_in_sum=cp.sum(rdens_in, axis=(1,2))
 		rdens_out_sum=cp.sum(rdens_out, axis=(1,2))
@@ -1030,19 +918,15 @@ for i in range(int(iteration)+int(additional_iteration)):
 	if(i+1==int(iteration)+int(additional_iteration)):
 		if(memory_transfer_flag==1):
 			cp_dens_pre = cp.asarray(cp_dens_pre, dtype=cp.complex64)#numpy配列 ⇒ cupy配列に変換	
-			cp_sup=cp.asarray(cp_sup)
-
 		R_dens=cp_dens_pre
+		if(memory_transfer_flag==1):
+			cp_dens_pre = cp.asnumpy(cp_dens_pre)#cupy配列 ⇒ numpy配列に変換
 		R_dens = cp.asnumpy(R_dens)
 		cp_sup = cp.asnumpy(cp_sup)
 		R_dens.real=R_dens.real*cp_sup
 		
 		if(DFPR_flag == 1):
 			R_dens_abs=np.absolute(R_dens)*cp_sup
-		
-		if(memory_transfer_flag==1):
-			cp_dens_pre = cp.asnumpy(cp_dens_pre)#cupy配列 ⇒ numpy配列に変換
-			cp_sup=cp.asnumpy(cp_sup)
 
 #		if(complex_constraint_flag != 1):
 #			R_dens.imag=R_dens.imag*cp_sup
@@ -1102,9 +986,6 @@ for i in range(int(iteration)+int(additional_iteration)):
 
 				#print(str(n) + ", " + str(x_G) + ", " + str(y_G)) # + ", " + str(x_sum) + ", " + str(y_sum))
 
-				if(memory_transfer_flag == 1):
-					cp_sup=cp.asarray(cp_sup)
-						
 				if(cp_mode=='np'):
 					R_dens[n,:,:]=np.roll(R_dens[n,:,:], int(row/2)-x_G, axis=0)
 					R_dens[n,:,:]=np.roll(R_dens[n,:,:], int(col/2)-y_G, axis=1)
@@ -1117,18 +998,9 @@ for i in range(int(iteration)+int(additional_iteration)):
 			
 					cp_sup[n,:,:]=cp.roll(cp_sup[n,:,:], int(row/2)-x_G, axis=0)	
 					cp_sup[n,:,:]=cp.roll(cp_sup[n,:,:], int(col/2)-y_G, axis=1)
-				
-				if(memory_transfer_flag == 1):
-					cp_sup=cp.asnumpy(cp_sup)
-
-		if(memory_transfer_flag == 1):
-			cp_sup=cp.asarray(cp_sup)
 
 		R_dens = cp.asarray(R_dens, dtype=cp.complex64)
 		cp_sup = cp.asarray(cp_sup,dtype="float32")
-
-		if(memory_transfer_flag == 1):
-			cp_sup=cp.asnumpy(cp_sup)
 
 	
 	#最後の電子密度とパターンの出力
@@ -1169,28 +1041,16 @@ for i in range(int(iteration)+int(additional_iteration)):
 				R_amp_adens = cp.fft.fftshift(R_amp_adens)
 				R_amp_donut=R_amp_adens
 			else:
-				cp_donut_target=cp.asarray(np_donut_target,dtype="float32")
 				R_amp_donut=cp.square(R_amp*cp_donut_target)
-				cp_donut_target=cp.asnumpy(cp_donut_target)
-
-			if(memory_transfer_flag == 1):
-				cp_autocorrelation_abs=cp.asarray(cp_autocorrelation_abs)
-				cp_autocorrelation=cp.asarray(cp_autocorrelation)
 
 			cp_autocorrelation = cp.fft.fft2(R_amp_donut, axes=(1,2), norm="ortho")
-			cp_autocorrelation = cp.fft.fftshift(cp_autocorrelation)
-	
+			cp_autocorrelation = cp.fft.fftshift(cp_autocorrelation)	
 			cp_autocorrelation_abs=cp.absolute(cp_autocorrelation)
-			if(memory_transfer_flag == 1):
-				cp_autocorrelation=cp.asnumpy(cp_autocorrelation)
 
 			np_autocorrelation_abs=cp.asnumpy(cp_autocorrelation_abs)
 			with mrcfile.new(header + '_final_autocorrelation.mrc', overwrite=True) as mrc:
 				mrc.set_data(np_autocorrelation_abs)
 			mrc.close
-			if(memory_transfer_flag == 1):
-				cp_autocorrelation_abs=cp.asnumpy(cp_autocorrelation_abs)
-
 
 			NOR=np.zeros(sta_dens)
 			NOR=np.asarray(NOR,dtype="float32")
@@ -1289,13 +1149,15 @@ for i in range(int(iteration)+int(additional_iteration)):
 			cp_sup_min_NOR=cp.flipud(cp_sup_min_NOR)
 			cp_sup_min_NOR = cp.asnumpy(cp_sup_min_NOR)#cupy配列 ⇒ numpy配列に変換
 			foname=header + "_final_sup_min_NOR.tif"
-			tifffile.imsave(foname ,cp_sup_min_NOR)			
+			tifffile.imsave(foname ,cp_sup_min_NOR)
+
+			
 
 		cp_sup = cp.asnumpy(cp_sup)
 		with mrcfile.new(header + '_final_sup.mrc', overwrite=True) as mrc:
 			mrc.set_data(cp_sup)
 		mrc.close
-		cp_sup = cp.asarray(cp_sup)
+		cp_sup=cp.asarray(cp_sup,dtype="float32")
 
 	#R-factorの計算
 
@@ -1303,10 +1165,6 @@ for i in range(int(iteration)+int(additional_iteration)):
 		R_amp = cp.absolute(R_structure_factor)
 		R_amp_square=cp.square(R_amp)
 		R_amp_abs=cp.absolute(R_amp)
-
-		if(memory_transfer_flag == 1):
-			cp_diff_amp=cp.asarray(cp_diff_amp)
-
 		cp_diff_amp_abs=cp.absolute(cp_diff_amp)
 	
 		R_amp_abs_cp_diff_amp_abs=R_amp_abs*cp_diff_amp_abs
@@ -1322,9 +1180,6 @@ for i in range(int(iteration)+int(additional_iteration)):
 		R_amp_abs_cp_diff_amp_abs_pos[cp_diff_amp%2>0.0]=R_amp_abs_cp_diff_amp_abs[cp_diff_amp%2>0.0]
 		cp_diff_amp_pos[cp_diff_amp%2>0.0]=cp_diff_amp[cp_diff_amp%2>0.0]
 		cp_diff_amp_abs_pos[cp_diff_amp%2>0.0]=cp_diff_amp_abs[cp_diff_amp%2>0.0]
-
-		if(memory_transfer_flag == 1):
-			cp_diff_amp=cp.asnumpy(cp_diff_amp)
 
 		amp2_sum=cp.sum(R_amp_square_pos, axis=(1,2))
 		amp_x_diff_amp_sum=cp.sum(R_amp_abs_cp_diff_amp_abs_pos, axis=(1,2))
@@ -1362,15 +1217,10 @@ for i in range(int(iteration)+int(additional_iteration)):
 			log.write("\n" + "min_gamma(" + str(n_min_gamma) + ") = " + str(min_gamma))
 	
 	#実空間拘束
-
+	
+	cp_dens_bk=cp.real(cp_dens)
 	if(memory_transfer_flag==1):
 		cp_dens_pre = cp.asarray(cp_dens_pre, dtype=cp.complex64)#numpy配列 ⇒ cupy配列に変換
-		cp_dens=cp.asarray(cp_dens)
-		cp_sup=cp.asarray(cp_sup)
-		if(i != 0):
-			cp_dens_bk=cp.asarray(cp_dens_bk)
-		
-	cp_dens_bk=cp.real(cp_dens)
 
 	if(DFPR_flag == 1):
 		cp_dens.real=cp.where(cp_sup==1, cp_dens_pre.real, cp_dens_bk-0.9*cp_dens_pre.real)
@@ -1386,18 +1236,14 @@ for i in range(int(iteration)+int(additional_iteration)):
 	else:
 		cp_dens.imag[:,:,:]=0.0
 
-	if(memory_transfer_flag == 1):
-		cp_dens_pre=cp.asnumpy(cp_dens_pre)
-		cp_dens_bk=cp.asnumpy(cp_dens_bk)
-		cp_dens=cp.asnumpy(cp_dens)
-		cp_sup=cp.asnumpy(cp_sup)
+	del cp_dens_pre
+	del cp_dens_bk
 
 	#OSS mask convolution
 	
 	if((OSS_flag==1) & ((i+1) <= int(iteration))):
 		if(memory_transfer_flag==1):
 			cp_structure_factor = cp.asarray(cp_structure_factor, dtype=cp.complex64)#numpy配列に変換 ⇒ cupy配列 
-			
 		cp_structure_factor = cp.fft.fftn(cp_dens, axes=(1,2),norm="ortho")#【フーリエ変換】
 		
 		if(i==0):
@@ -1413,20 +1259,13 @@ for i in range(int(iteration)+int(additional_iteration)):
 		W_dens = cp.fft.ifftn(cp_structure_factor, axes=(1,2),norm="ortho")
 		if(memory_transfer_flag==1):
 			cp_structure_factor = cp.asnumpy(cp_structure_factor)#cupy配列 ⇒ numpy配列に変換
-			W_kernel=cp.asnumpy(W_kernel)
 
 #		print(str(i+1).zfill(6) + " alpha = " + str(OSS_alpha))
 
 		#OSS 実空間拘束
-		if(memory_transfer_flag == 1):
-			cp_sup=cp.asarray(cp_sup)
 
 		cp_dens.real=cp.where(cp_sup==0, W_dens.real, cp_dens.real)
 		cp_dens.imag[:,:,:]=0.0
-
-		if(memory_transfer_flag ==1 ):
-			cp_sup=cp.asnumpy(cp_sup)
-			W_dens=cp.asnumpy(W_dens)
 
 	#OSS parameter update
 
@@ -1438,9 +1277,6 @@ for i in range(int(iteration)+int(additional_iteration)):
 			W_kernel=cp.asarray(W_kernel,dtype="float32")
 			W_kernel=W_kernel / cp.amax(W_kernel)
 			W_kernel = cp.fft.ifftshift(W_kernel)
-
-			if(memory_transfer_flag == 1):
-				W_kernel=cp.asnumpy(W_kernel)
 
 t5=time.time()
 
